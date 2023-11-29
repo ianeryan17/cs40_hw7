@@ -37,7 +37,7 @@ struct Segments initialize()
         (*seg.nextID) = 1;
         return seg;
 }
-
+// ttest
 /********** update_zero_seg ********
  * Purpose: sets 0 segment in segments table to given UArray_T (program)
  * Inputs:  Segments seg: reference to segments struct
