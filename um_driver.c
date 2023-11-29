@@ -64,7 +64,7 @@ void run(UArray_T program)
         struct Segments seg_memory = initialize();
         update_zero_seg(seg_memory, program);
         uint32_t *registers = (uint32_t *) calloc(8, sizeof(uint32_t));
-        
+        //fprintf(stderr, "before while\n");
         /* runs until end of zero segment in case of no halt command */
         while (program_counter < 
                (uint32_t)UArray_length(get_segment(seg_memory, 0))) {
@@ -75,9 +75,11 @@ void run(UArray_T program)
                                 (uint32_t)UArray_length(
                                 get_segment(seg_memory, 0)));
         }
-
+        //fprintf(stderr, "before freeing reg\n");
         free(registers);
+        //fprintf(stderr, "after freeing reg\n");
         free_all_segments(seg_memory);
+        //fprintf(stderr, "after freeing segs\n");
 }
 
 /********** execute_command ********
@@ -98,18 +100,27 @@ static void execute_command(struct Segments seg_memory, uint32_t program,
                             uint32_t program_length)
 {
         uint32_t opcode = get_opcode(program);
+        // fprintf(stderr, "opcode: %u\n", opcode);
+
         uint32_t ra, rb, rc, value;
         if (opcode == 13){
                 get_val(program, &ra, &value);
                 assert(ra < 8);
+                // fprintf(stderr, "loading value: %u into %u\n", value, ra);
         } else {
                 get_registers(program, &ra, &rb, &rc);
                 assert(ra < 8);
                 assert(rb < 8);
                 assert(rc < 8);
+                // fprintf(stderr, "ra, rb, rc: %u, %u, %u\n", ra, rb, rc);
         }
-
-        (*program_counter)++;
+        // fprintf(stderr, "Registers: ");
+        // for (int i = 0; i < 8; i++) {
+        //         fprintf(stderr, "%u ", registers[i]);
+        // }
+        // fprintf(stderr, "\n");
+        
+        (*program_counter)++; 
         assert(opcode <= 13);
 
         switch(opcode) {
