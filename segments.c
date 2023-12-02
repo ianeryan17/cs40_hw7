@@ -18,8 +18,6 @@
 #include "seq.h"
 #include "assert.h"
 
-static void vfree(const void *key, void **value, void *cl);
-
 /********** initialize ********
  * Purpose: creates a new instance of Segments struct, allocates memory on heap
             for Table, Seq, and a uint32_T
@@ -30,14 +28,14 @@ static void vfree(const void *key, void **value, void *cl);
 struct Segments initialize()
 {
         struct Segments seg;
-        seg.mapped = Table_new(10, NULL, NULL);
+        seg.mapped = Seq_new(10);
         seg.unmapped = Seq_new(10);
         seg.nextID = malloc(sizeof(seg.nextID));
         assert(seg.nextID != NULL);
         (*seg.nextID) = 1;
         return seg;
 }
-
+// ttest
 /********** update_zero_seg ********
  * Purpose: sets 0 segment in segments table to given UArray_T (program)
  * Inputs:  Segments seg: reference to segments struct
@@ -47,8 +45,13 @@ struct Segments initialize()
  ************************/
 void update_zero_seg(struct Segments seg, UArray_T program)
 {
-        const char *zero_key = Atom_int(0);
-        Table_put(seg.mapped, zero_key, (void *)program);
+        if (Seq_length(seg.mapped) == 0) {
+                Seq_addlo(seg.mapped, (void *)program);
+        } else {
+                Seq_put(seg.mapped, 0, (void *)program);
+        }
+        //fprintf(stderr, "length should be %u but it is %u\n", (*seg.nextID), (uint32_t)Seq_length(seg.mapped));
+
 }
 
 /********** segment_map ********
@@ -64,16 +67,18 @@ uint32_t segment_map(struct Segments seg, uint32_t length)
         uint32_t id = 0;
         if (Seq_length(seg.unmapped) == 0){ /* new id case */
                 id = (*seg.nextID);
-                const char *key = Atom_int(id);
                 UArray_T new_seg = UArray_new(length, sizeof(uint32_t));
+                
                 (*seg.nextID)++;
-                Table_put(seg.mapped, key, new_seg);
+                Seq_addhi(seg.mapped, new_seg);
+                // fprintf(stderr, "length should be %u but it is %u\n", (*seg.nextID), (uint32_t)Seq_length(seg.mapped));
+                assert((*seg.nextID) == (uint32_t)Seq_length(seg.mapped));
         } else { /* unmapped id case */
                 id = (uint32_t)(uintptr_t)Seq_remhi(seg.unmapped);
-                const char *key = Atom_int(id);
                 UArray_T new_seg = UArray_new(length, sizeof(uint32_t));
-                Table_put(seg.mapped, key, new_seg);
+                Seq_put(seg.mapped, id, new_seg);
         }
+        //fprintf(stderr, "SEGMENT %u created with length %u\n", id, length);
         return id;
 }
 
@@ -97,8 +102,7 @@ void segment_unmap(struct Segments seg, uint32_t id)
         UArray_free(&table_entry);
         table_entry = NULL;
         
-        const char *key = Atom_int(id);
-        Table_remove(seg.mapped, key);
+        Seq_put(seg.mapped, id, NULL);
         Seq_addhi(seg.unmapped, (void *)(uintptr_t)id);
 }
 
@@ -115,10 +119,11 @@ void word_store(struct Segments seg, uint32_t word, uint32_t id,
                        uint32_t offset)
 {
         UArray_T target_segment = get_segment(seg, id);
-
+        
         /* catches unmapped or non-mapped segment */
         assert(target_segment != NULL); 
         /* ensures offset is within segment length */
+        // fprintf(stderr, "trying to store word in id: %u, length: %u and offset: %u\n", id, (uint32_t)UArray_length(target_segment), offset);
         assert((uint32_t)UArray_length(target_segment) > offset); 
 
         *((uint32_t *)UArray_at(target_segment, offset)) = word;
@@ -149,8 +154,7 @@ uint32_t word_load(struct Segments seg, uint32_t id, uint32_t offset)
  ************************/
 UArray_T get_segment(struct Segments seg, uint32_t id)
 {
-        const char *key = Atom_int(id);
-        UArray_T table_entry = Table_get(seg.mapped, key);
+        UArray_T table_entry = Seq_get(seg.mapped, id);
         return table_entry;
 }
 
@@ -164,8 +168,7 @@ UArray_T get_segment(struct Segments seg, uint32_t id)
  ************************/
 void free_segment(struct Segments seg, uint32_t id)
 {
-        const char *key = Atom_int(id);
-        UArray_T table_entry = Table_get(seg.mapped, key);
+        UArray_T table_entry = Seq_get(seg.mapped, id);
         if (table_entry != NULL) {
                 UArray_free(&table_entry);
                 table_entry = NULL;
@@ -181,30 +184,14 @@ void free_segment(struct Segments seg, uint32_t id)
  ************************/
 void free_all_segments(struct Segments seg)
 {
-        Table_map(seg.mapped, vfree, NULL);
-        Table_free(&seg.mapped);
+        for (int i = 0; i < (int)(*seg.nextID); i++) {
+                free_segment(seg, i);
+        }
+        Seq_free(&seg.mapped);
         Seq_free(&seg.unmapped);
         free(seg.nextID);
         seg.nextID = NULL;
         seg.mapped = NULL;
         seg.unmapped = NULL;
-}
-
-/********** vfree ********
- * Purpose: helper function that frees each segment in the table individually
- * Inputs:  void *key: key of current segment, not used
-            void **value: reference to value of current segment
-            void *cl: closure param, not used
- * Return:  void
- * Expects: 
- ************************/
-static void vfree(const void *key, void **value, void *cl) {
-        UArray_T cur_seq = *value;
-        if (cur_seq != NULL){
-                UArray_free(&cur_seq);
-                cur_seq = NULL;
-        }
-        (void) key;
-        (void) cl;
 }
 
