@@ -57,21 +57,40 @@ static inline void get_val(uint32_t word, uint32_t *ra, uint32_t *value);
  * Return:  void
  * Expects: program to be a properly initialized UArray 
  ************************/
-void run(UArray_T program)
+void run(uint32_t *program, uint32_t length)
 {
         uint32_t program_counter = 0;
+        
         struct Segments seg_memory = initialize();
+        //fprintf(stderr, "program length: %d\n", UArray_length(program));
+        //fprintf(stderr, "getting here\n");
+        
+        uint32_t *registers = (uint32_t *) malloc(8*sizeof(uint32_t));
+        for (int i = 0; i < 8; i++){
+                registers[i] = 0;
+        }
+
+        *seg_memory.program_length = length;
+        Seq_addlo(seg_memory.lengths, (void *)(uintptr_t)length);
         update_zero_seg(seg_memory, program);
-        uint32_t *registers = (uint32_t *) calloc(8, sizeof(uint32_t));
+        
+        // for (int i = 0; i < 29; i++) {
+        //         fprintf(stderr, "word %u at index %d\n", program[i], i);
+        //         // fprintf(stderr, "word %u at %d\n", *(get_segment(seg_memory, 0) + 4*(i)), i);
+        // }
+        
         //fprintf(stderr, "before while\n");
         /* runs until end of zero segment in case of no halt command */
-        while (program_counter < (*seg_memory.program_length)) {
+        
+        while (program_counter < (uint32_t)(uintptr_t)(Seq_get(seg_memory.lengths, 0))) {
+                //fprintf(stderr, "length %u\n", (uint32_t)(uintptr_t)(Seq_get(seg_memory.lengths, 0)));
                 uint32_t cur_command = 
                                 word_load(seg_memory, 0, program_counter);
                 //execute_command(seg_memory, cur_command, registers, &program_counter);
-
                 uint32_t opcode = get_opcode(cur_command);
-        // fprintf(stderr, "opcode: %u\n", opcode);
+                // fprintf(stderr, "entire command %u\n", cur_command);
+                // fprintf(stderr, "counter %u\n", program_counter);
+                // fprintf(stderr, "opcode: %u\n", opcode);
                 uint32_t ra, rb, rc, value;
                 value = 0;
                 ra = 0;
@@ -89,7 +108,10 @@ void run(UArray_T program)
                         assert(ra < 8);
                         assert(rb < 8);
                         assert(rc < 8);
-                        // fprintf(stderr, "ra, rb, rc: %u, %u, %u\n", ra, rb, rc);
+                        // if (opcode == 12){
+                        //                                 // fprintf(stderr, "ra, rb, rc: %u, %u, %u\n", ra, rb, rc);
+
+                        // }
                 }
                 // fprintf(stderr, "Registers: ");
                 // for (int i = 0; i < 8; i++) {
@@ -455,17 +477,23 @@ static inline void load_program(struct Segments seg_memory,
 {
         uint32_t id = registers[rb];
         uint32_t new_counter = registers[rc];
-        UArray_T target_program = get_segment(seg_memory, id);
-        
+        uint32_t *target_program = get_segment(seg_memory, id);
+        uint32_t new_len = (uint32_t)(uintptr_t)Seq_get(seg_memory.lengths, id);
         /* catch attempt to load unmapped/not-mapped seg */
         assert(target_program != NULL); 
         /* catch out of bounds program counter */
-        assert(new_counter < (uint32_t)UArray_length(target_program)); 
+        assert(new_counter < new_len); 
         
-        UArray_T copy = UArray_copy(target_program, 
-                                    UArray_length(target_program));
+        // UArray_T copy = UArray_copy(target_program, 
+        //                             UArray_length(target_program));
+        uint32_t *copy = calloc(new_len,sizeof(uint32_t));
+        // for (uint32_t i = 0; i < new_len; i++) {
+        //         copy[i] = target_program[i];
+        // }
+        memcpy(copy, target_program, new_len*sizeof(uint32_t));
         free_segment(seg_memory, 0);
         update_zero_seg(seg_memory, copy);
+        Seq_put(seg_memory.lengths, 0, (void *)(uintptr_t)new_len);
 
         *program_counter = new_counter;
 }
