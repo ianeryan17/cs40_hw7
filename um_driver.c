@@ -16,8 +16,7 @@
 #include "um_driver.h"
 
 static void execute_command(struct Segments seg_memory, uint32_t program,
-                            uint32_t *registers, uint32_t *program_counter,
-                            uint32_t program_length);
+                            uint32_t *registers, uint32_t *program_counter);
 static inline void conditional_move(uint32_t *registers, uint32_t ra, 
                                     uint32_t rb, uint32_t rc);
 static inline void segmented_load(struct Segments seg_memory, 
@@ -66,14 +65,11 @@ void run(UArray_T program)
         uint32_t *registers = (uint32_t *) calloc(8, sizeof(uint32_t));
         //fprintf(stderr, "before while\n");
         /* runs until end of zero segment in case of no halt command */
-        while (program_counter < 
-               (uint32_t)UArray_length(get_segment(seg_memory, 0))) {
+        while (program_counter < (*seg_memory.program_length)) {
                 uint32_t cur_command = 
                                 word_load(seg_memory, 0, program_counter);
                 execute_command(seg_memory, cur_command, registers,
-                                &program_counter, 
-                                (uint32_t)UArray_length(
-                                get_segment(seg_memory, 0)));
+                                &program_counter);
         }
         //fprintf(stderr, "before freeing reg\n");
         free(registers);
@@ -96,19 +92,25 @@ void run(UArray_T program)
  * Expects: seg_memory to be properly initialized 
  ************************/
 static void execute_command(struct Segments seg_memory, uint32_t program,
-                            uint32_t *registers, uint32_t *program_counter,
-                            uint32_t program_length)
+                            uint32_t *registers, uint32_t *program_counter)
 {
         uint32_t opcode = get_opcode(program);
         // fprintf(stderr, "opcode: %u\n", opcode);
 
         uint32_t ra, rb, rc, value;
+        value = 0;
+        ra = 0;
+        rb = 0;
+        rc = 0;
         if (opcode == 13){
-                get_val(program, &ra, &value);
+                ra = (uint32_t)Bitpack_getu(program, 3, 25); 
+                value = (uint32_t)Bitpack_getu(program, 25, 0); 
                 assert(ra < 8);
                 // fprintf(stderr, "loading value: %u into %u\n", value, ra);
         } else {
-                get_registers(program, &ra, &rb, &rc);
+                ra = (uint32_t)Bitpack_getu(program, 3, 6);
+                rb = (uint32_t)Bitpack_getu(program, 3, 3);
+                rc = (uint32_t)Bitpack_getu(program, 3, 0);
                 assert(ra < 8);
                 assert(rb < 8);
                 assert(rc < 8);
@@ -146,7 +148,7 @@ static void execute_command(struct Segments seg_memory, uint32_t program,
                         bitwise_nand(registers, ra, rb, rc);
                         break;
                 case 7:
-                        halt(program_counter, program_length);
+                        halt(program_counter, (*seg_memory.program_length));
                         break;
                 case 8:
                         map_seg(seg_memory, registers, rb, rc);

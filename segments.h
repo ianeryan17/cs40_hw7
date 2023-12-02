@@ -15,6 +15,9 @@ struct Segments {
     Seq_T mapped;
     Seq_T unmapped;
     uint32_t *nextID;
+    uint32_t *mapped_len;
+    uint32_t *unmapped_len;
+    uint32_t *program_length;
 };
 
 typedef struct Segments *Segments;

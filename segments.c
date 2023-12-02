@@ -33,6 +33,18 @@ struct Segments initialize()
         seg.nextID = malloc(sizeof(seg.nextID));
         assert(seg.nextID != NULL);
         (*seg.nextID) = 1;
+
+        seg.mapped_len = malloc(sizeof(seg.mapped_len));
+        assert(seg.mapped_len != NULL);
+        (*seg.mapped_len) = 0;
+
+        seg.unmapped_len = malloc(sizeof(seg.unmapped_len));
+        assert(seg.unmapped_len != NULL);
+        (*seg.unmapped_len) = 0;
+
+        seg.program_length = malloc(sizeof(seg.program_length));
+        assert(seg.program_length != NULL);
+        (*seg.program_length) = 0;
         return seg;
 }
 // ttest
@@ -45,11 +57,14 @@ struct Segments initialize()
  ************************/
 void update_zero_seg(struct Segments seg, UArray_T program)
 {
-        if (Seq_length(seg.mapped) == 0) {
+        if ((*seg.mapped_len) == 0) {
                 Seq_addlo(seg.mapped, (void *)program);
+                (*seg.mapped_len)++;
+
         } else {
                 Seq_put(seg.mapped, 0, (void *)program);
         }
+        (*seg.program_length) = (uint32_t)UArray_length(program);
         //fprintf(stderr, "length should be %u but it is %u\n", (*seg.nextID), (uint32_t)Seq_length(seg.mapped));
 
 }
@@ -65,16 +80,18 @@ void update_zero_seg(struct Segments seg, UArray_T program)
 uint32_t segment_map(struct Segments seg, uint32_t length)
 {
         uint32_t id = 0;
-        if (Seq_length(seg.unmapped) == 0){ /* new id case */
+        if ((*seg.unmapped_len) == 0){ /* new id case */
                 id = (*seg.nextID);
                 UArray_T new_seg = UArray_new(length, sizeof(uint32_t));
                 
                 (*seg.nextID)++;
                 Seq_addhi(seg.mapped, new_seg);
+                (*seg.mapped_len)++;
                 // fprintf(stderr, "length should be %u but it is %u\n", (*seg.nextID), (uint32_t)Seq_length(seg.mapped));
-                assert((*seg.nextID) == (uint32_t)Seq_length(seg.mapped));
+                assert((*seg.nextID) == (uint32_t)(*seg.mapped_len));
         } else { /* unmapped id case */
                 id = (uint32_t)(uintptr_t)Seq_remhi(seg.unmapped);
+                (*seg.unmapped_len)--;
                 UArray_T new_seg = UArray_new(length, sizeof(uint32_t));
                 Seq_put(seg.mapped, id, new_seg);
         }
@@ -104,6 +121,7 @@ void segment_unmap(struct Segments seg, uint32_t id)
         
         Seq_put(seg.mapped, id, NULL);
         Seq_addhi(seg.unmapped, (void *)(uintptr_t)id);
+        (*seg.unmapped_len)++;
 }
 
 /********** word_store ********
@@ -190,8 +208,12 @@ void free_all_segments(struct Segments seg)
         Seq_free(&seg.mapped);
         Seq_free(&seg.unmapped);
         free(seg.nextID);
+        free(seg.mapped_len);
+        free(seg.unmapped_len);
         seg.nextID = NULL;
         seg.mapped = NULL;
         seg.unmapped = NULL;
+        seg.mapped_len = NULL;
+        seg.unmapped_len = NULL;
 }
 
