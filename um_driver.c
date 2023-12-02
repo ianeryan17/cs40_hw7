@@ -103,6 +103,7 @@ static void execute_command(struct Segments seg_memory, uint32_t program,
         // fprintf(stderr, "opcode: %u\n", opcode);
 
         uint32_t ra, rb, rc, value;
+        value = 0;
         if (opcode == 13){
                 get_val(program, &ra, &value);
                 assert(ra < 8);
