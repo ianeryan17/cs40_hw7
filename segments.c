@@ -136,7 +136,7 @@ void segment_unmap(struct Segments seg, uint32_t id)
         free(seg_ptr);
         seg.mapped[id] = NULL;
         //table_entry = NULL;
-        
+        Seq_put(seg.lengths, id, NULL);
         //Seq_put(seg.mapped, id, NULL);
         Seq_addhi(seg.unmapped, (void *)(uintptr_t)id);
         (*seg.unmapped_len)++;
@@ -180,8 +180,12 @@ uint32_t word_load(struct Segments seg, uint32_t id, uint32_t offset)
         // for (int i = 0; i < 29; i++) {
         //         fprintf(stderr, "word %u at %d\n", *(target_segment + 4*(i)), i);
         // }impossible
-        assert(target_segment != NULL); 
-        assert(offset < (uint32_t)(uintptr_t)Seq_get(seg.lengths, id));
+        assert(target_segment != NULL);
+        if (offset >= (uint32_t)(uintptr_t)Seq_get(seg.lengths, id)) {
+                fprintf(stderr, "id %u, offset %u and length %u\n", id, offset, (uint32_t)(uintptr_t)Seq_get(seg.lengths, id));
+                assert(offset < (uint32_t)(uintptr_t)Seq_get(seg.lengths, id));
+        }
+        
         //assert((uint32_t)UArray_length(target_segment) > offset); 
         // uint32_t *address = target_segment + sizeof(uint32_t)*(offset);
         // fprintf(stderr, "word loaded: %u\n", *address);
