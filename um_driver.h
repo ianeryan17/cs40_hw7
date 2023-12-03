@@ -5,10 +5,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdint.h>
-#include <bitpack.h>
 #include "seq.h"
-#include "table.h"
-#include "set.h"
 #include "segments.h"
 #include "uarray.h"
 // #include "word_extractor.h"

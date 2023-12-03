@@ -15,8 +15,8 @@
 #include "assert.h"
 #include "um_driver.h"
 
-static void execute_command(struct Segments seg_memory, uint32_t program,
-                            uint32_t *registers, uint32_t *program_counter);
+// static void execute_command(struct Segments seg_memory, uint32_t program,
+//                             uint32_t *registers, uint32_t *program_counter);
 static inline void conditional_move(uint32_t *registers, uint32_t ra, 
                                     uint32_t rb, uint32_t rc);
 static inline void segmented_load(struct Segments seg_memory, 
@@ -49,6 +49,9 @@ static inline uint32_t get_opcode(uint32_t word);
 static inline void get_registers(uint32_t word, uint32_t *ra, uint32_t *rb, 
                                  uint32_t *rc);
 static inline void get_val(uint32_t word, uint32_t *ra, uint32_t *value);
+static inline uint64_t bitget(uint64_t word, unsigned width, unsigned lsb);
+static inline uint64_t shr(uint64_t word, unsigned bits);
+static inline uint64_t shl(uint64_t word, unsigned bits);
 
 /********** run ********
  * Purpose: receives a UArray_T that represents the program of the um and
@@ -66,10 +69,82 @@ void run(UArray_T program)
         //fprintf(stderr, "before while\n");
         /* runs until end of zero segment in case of no halt command */
         while (program_counter < (*seg_memory.program_length)) {
-                uint32_t cur_command = 
-                                word_load(seg_memory, 0, program_counter);
-                execute_command(seg_memory, cur_command, registers,
-                                &program_counter);
+                uint32_t cur_command = word_load(seg_memory, 0, program_counter);
+
+                //execute_command(seg_memory, cur_command, registers, &program_counter);
+
+                uint32_t opcode = (uint32_t)bitget(cur_command, 4, 28);
+        // fprintf(stderr, "opcode: %u\n", opcode);
+
+                uint32_t ra, rb, rc, value;
+                value = 0;
+                ra = 0;
+                rb = 0;
+                rc = 0;
+                if (opcode == 13){
+                        ra = (uint32_t)bitget(cur_command, 3, 25); 
+                        value = (uint32_t)bitget(cur_command, 25, 0); 
+                        assert(ra < 8);
+                        // fprintf(stderr, "loading value: %u into %u\n", value, ra);
+                } else {
+                        ra = (uint32_t)bitget(cur_command, 3, 6);
+                        rb = (uint32_t)bitget(cur_command, 3, 3);
+                        rc = (uint32_t)bitget(cur_command, 3, 0);
+                        assert(ra < 8);
+                        assert(rb < 8);
+                        assert(rc < 8);
+                        // fprintf(stderr, "ra, rb, rc: %u, %u, %u\n", ra, rb, rc);
+                }
+                
+                (program_counter)++; 
+                assert(opcode <= 13);
+
+                switch(opcode) {
+                        case 0:
+                                conditional_move(registers, ra, rb, rc);
+                                break;
+                        case 1:
+                                segmented_load(seg_memory, registers, ra, rb, rc);
+                                break;
+                        case 2:
+                                segmented_store(seg_memory, registers, ra, rb, rc);
+                                break;
+                        case 3:
+                                addition(registers, ra, rb, rc);
+                                break;
+                        case 4:
+                                multiplication(registers, ra, rb, rc);
+                                break;
+                        case 5:
+                                division(registers, ra, rb, rc);
+                                break;
+                        case 6:
+                                bitwise_nand(registers, ra, rb, rc);
+                                break;
+                        case 7:
+                                halt(&program_counter, (*seg_memory.program_length));
+                                break;
+                        case 8:
+                                map_seg(seg_memory, registers, rb, rc);
+                                break;
+                        case 9:
+                                unmap_seg(seg_memory, registers, rc);
+                                break;
+                        case 10:
+                                output(registers, rc);
+                                break;
+                        case 11:
+                                input(registers, rc);
+                                break;
+                        case 12:
+                                load_program(seg_memory, registers, rb, rc, 
+                                        &program_counter);
+                                break;
+                        case 13:
+                                load_val(registers, ra, value);
+                                break;
+                }
+
         }
         //fprintf(stderr, "before freeing reg\n");
         free(registers);
@@ -91,10 +166,11 @@ void run(UArray_T program)
  * Return:  void
  * Expects: seg_memory to be properly initialized 
  ************************/
+ /*
 static void execute_command(struct Segments seg_memory, uint32_t program,
                             uint32_t *registers, uint32_t *program_counter)
 {
-        uint32_t opcode = get_opcode(program);
+        uint32_t opcode = (uint32_t)Bitpack_getu(program, 4, 28);
         // fprintf(stderr, "opcode: %u\n", opcode);
 
         uint32_t ra, rb, rc, value;
@@ -171,6 +247,41 @@ static void execute_command(struct Segments seg_memory, uint32_t program,
                         break;
         }
 }
+*/
+
+static inline uint64_t shl(uint64_t word, unsigned bits)
+{
+        assert(bits <= 64);
+        if (bits == 64)
+                return 0;
+        else
+                return word << bits;
+}
+
+/*
+ * shift R logical
+ */
+static inline uint64_t shr(uint64_t word, unsigned bits)
+{
+        assert(bits <= 64);
+        if (bits == 64)
+                return 0;
+        else
+                return word >> bits;
+}
+
+
+
+static inline uint64_t bitget(uint64_t word, unsigned width, unsigned lsb)
+{
+        assert(width <= 64);
+        unsigned hi = lsb + width; /* one beyond the most significant bit */
+        assert(hi <= 64);
+        /* different type of right shift */
+        return shr(shl(word, 64 - hi),
+                   64 - width); 
+}
+
 
 /********** conditional_move ********
  * Purpose: sets value of register a to register b if register c is not 0
