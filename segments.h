@@ -12,7 +12,7 @@
 #include "uarray.h"
 
 struct Segments {
-    Seq_T mapped;
+    UArray_T *mapped;
     Seq_T unmapped;
     uint32_t *nextID;
     uint32_t *mapped_len;

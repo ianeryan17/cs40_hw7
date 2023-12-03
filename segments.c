@@ -28,8 +28,9 @@
 struct Segments initialize()
 {
         struct Segments seg;
-        seg.mapped = Seq_new(10);
+        seg.mapped = calloc(1000000, sizeof(UArray_T));
         seg.unmapped = Seq_new(10);
+
         seg.nextID = malloc(sizeof(seg.nextID));
         assert(seg.nextID != NULL);
         (*seg.nextID) = 1;
@@ -58,11 +59,11 @@ struct Segments initialize()
 void update_zero_seg(struct Segments seg, UArray_T program)
 {
         if ((*seg.mapped_len) == 0) {
-                Seq_addlo(seg.mapped, (void *)program);
+                seg.mapped[0] = (void *)program;
                 (*seg.mapped_len)++;
 
         } else {
-                Seq_put(seg.mapped, 0, (void *)program);
+                seg.mapped[0] = program;
         }
         (*seg.program_length) = (uint32_t)UArray_length(program);
         //fprintf(stderr, "length should be %u but it is %u\n", (*seg.nextID), (uint32_t)Seq_length(seg.mapped));
@@ -83,9 +84,8 @@ uint32_t segment_map(struct Segments seg, uint32_t length)
         if ((*seg.unmapped_len) == 0){ /* new id case */
                 id = (*seg.nextID);
                 UArray_T new_seg = UArray_new(length, sizeof(uint32_t));
-                
                 (*seg.nextID)++;
-                Seq_addhi(seg.mapped, new_seg);
+                seg.mapped[id] = new_seg;
                 (*seg.mapped_len)++;
                 // fprintf(stderr, "length should be %u but it is %u\n", (*seg.nextID), (uint32_t)Seq_length(seg.mapped));
                 assert((*seg.nextID) == (uint32_t)(*seg.mapped_len));
@@ -93,7 +93,7 @@ uint32_t segment_map(struct Segments seg, uint32_t length)
                 id = (uint32_t)(uintptr_t)Seq_remhi(seg.unmapped);
                 (*seg.unmapped_len)--;
                 UArray_T new_seg = UArray_new(length, sizeof(uint32_t));
-                Seq_put(seg.mapped, id, new_seg);
+                seg.mapped[id] = new_seg;
         }
         //fprintf(stderr, "SEGMENT %u created with length %u\n", id, length);
         return id;
@@ -119,7 +119,7 @@ void segment_unmap(struct Segments seg, uint32_t id)
         UArray_free(&table_entry);
         table_entry = NULL;
         
-        Seq_put(seg.mapped, id, NULL);
+        seg.mapped[id] = NULL;
         Seq_addhi(seg.unmapped, (void *)(uintptr_t)id);
         (*seg.unmapped_len)++;
 }
@@ -172,8 +172,8 @@ uint32_t word_load(struct Segments seg, uint32_t id, uint32_t offset)
  ************************/
 UArray_T get_segment(struct Segments seg, uint32_t id)
 {
-        UArray_T table_entry = Seq_get(seg.mapped, id);
-        return table_entry;
+        assert(id < *seg.mapped_len);
+        return seg.mapped[id];
 }
 
 /********** free_segment ********
@@ -186,7 +186,7 @@ UArray_T get_segment(struct Segments seg, uint32_t id)
  ************************/
 void free_segment(struct Segments seg, uint32_t id)
 {
-        UArray_T table_entry = Seq_get(seg.mapped, id);
+        UArray_T table_entry = get_segment(seg, id);
         if (table_entry != NULL) {
                 UArray_free(&table_entry);
                 table_entry = NULL;
@@ -205,11 +205,12 @@ void free_all_segments(struct Segments seg)
         for (int i = 0; i < (int)(*seg.nextID); i++) {
                 free_segment(seg, i);
         }
-        Seq_free(&seg.mapped);
+        free(seg.mapped);
         Seq_free(&seg.unmapped);
         free(seg.nextID);
         free(seg.mapped_len);
         free(seg.unmapped_len);
+        free(seg.program_length);
         seg.nextID = NULL;
         seg.mapped = NULL;
         seg.unmapped = NULL;
