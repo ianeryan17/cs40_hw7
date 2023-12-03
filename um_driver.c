@@ -84,9 +84,7 @@ void run(uint32_t *program, uint32_t length)
         
         while (program_counter < (uint32_t)(uintptr_t)(Seq_get(seg_memory.lengths, 0))) {
                 //fprintf(stderr, "length %u\n", (uint32_t)(uintptr_t)(Seq_get(seg_memory.lengths, 0)));
-                uint32_t cur_command = 
-                                word_load(seg_memory, 0, program_counter);
-                //execute_command(seg_memory, cur_command, registers, &program_counter);
+                uint32_t cur_command = word_load(seg_memory, 0, program_counter);
                 uint32_t opcode = get_opcode(cur_command);
                 // fprintf(stderr, "entire command %u\n", cur_command);
                 // fprintf(stderr, "counter %u\n", program_counter);
