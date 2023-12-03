@@ -484,13 +484,17 @@ static inline void load_program(struct Segments seg_memory,
         
         // UArray_T copy = UArray_copy(target_program, 
         //                             UArray_length(target_program));
-        uint32_t *copy = calloc(new_len,sizeof(uint32_t));
+        
         // for (uint32_t i = 0; i < new_len; i++) {
         //         copy[i] = target_program[i];
         // }
-        memcpy(copy, target_program, new_len*sizeof(uint32_t));
-        free_segment(seg_memory, 0);
-        update_zero_seg(seg_memory, copy);
+        if (id != 0) {
+                uint32_t *copy = calloc(new_len,sizeof(uint32_t));
+                memcpy(copy, target_program, new_len*sizeof(uint32_t));
+                free_segment(seg_memory, 0);
+                update_zero_seg(seg_memory, copy);
+                
+        }
         Seq_put(seg_memory.lengths, 0, (void *)(uintptr_t)new_len);
 
         *program_counter = new_counter;

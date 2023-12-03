@@ -151,7 +151,7 @@ void word_store(struct Segments seg, uint32_t word, uint32_t id,
         assert(target_segment != NULL); 
         /* ensures offset is within segment length */
         // fprintf(stderr, "trying to store word in id: %u, length: %u and offset: %u\n", id, (uint32_t)UArray_length(target_segment), offset);
-        assert(offset < Seq_get(seg.lengths, id));
+        assert(offset < (uint32_t)(uintptr_t)Seq_get(seg.lengths, id));
         //assert((uint32_t)UArray_length(target_segment) > offset); 
         target_segment[offset] = word; 
         //*((uint32_t *)UArray_at(target_segment, offset)) = word;
@@ -172,7 +172,7 @@ uint32_t word_load(struct Segments seg, uint32_t id, uint32_t offset)
         //         fprintf(stderr, "word %u at %d\n", *(target_segment + 4*(i)), i);
         // }impossible
         assert(target_segment != NULL); 
-        assert(offset < Seq_get(seg.lengths, id));
+        assert(offset < (uint32_t)(uintptr_t)Seq_get(seg.lengths, id));
         //assert((uint32_t)UArray_length(target_segment) > offset); 
         // uint32_t *address = target_segment + sizeof(uint32_t)*(offset);
         // fprintf(stderr, "word loaded: %u\n", *address);
