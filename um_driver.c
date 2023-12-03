@@ -379,18 +379,20 @@ static inline void load_program(struct Segments seg_memory,
 {
         uint32_t id = registers[rb];
         uint32_t new_counter = registers[rc];
-        UArray_T target_program = get_segment(seg_memory, id);
+        if (id != 0) {
+                UArray_T target_program = get_segment(seg_memory, id);
         
-        /* catch attempt to load unmapped/not-mapped seg */
-        assert(target_program != NULL); 
-        /* catch out of bounds program counter */
-        assert(new_counter < (uint32_t)UArray_length(target_program)); 
-        
-        UArray_T copy = UArray_copy(target_program, 
-                                    UArray_length(target_program));
-        free_segment(seg_memory, 0);
-        update_zero_seg(seg_memory, copy);
+                /* catch attempt to load unmapped/not-mapped seg */
+                assert(target_program != NULL); 
+                /* catch out of bounds program counter */
+                assert(new_counter < (uint32_t)UArray_length(target_program)); 
+                
+                UArray_T copy = UArray_copy(target_program, 
+                                        UArray_length(target_program));
+                free_segment(seg_memory, 0);
+                update_zero_seg(seg_memory, copy);
 
+        }
         *program_counter = new_counter;
 }
 
