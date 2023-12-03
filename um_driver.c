@@ -74,11 +74,12 @@ void run(uint32_t *program, uint32_t length)
         Seq_addlo(seg_memory.lengths, (void *)(uintptr_t)length);
         update_zero_seg(seg_memory, program);
         
+        //uint32_t *test = get_segment(seg_memory, 0);
         // for (int i = 0; i < 29; i++) {
-        //         fprintf(stderr, "word %u at index %d\n", program[i], i);
+        //         fprintf(stderr, "word %u at index %d\n", test[i], i);
         //         // fprintf(stderr, "word %u at %d\n", *(get_segment(seg_memory, 0) + 4*(i)), i);
         // }
-        
+        //fprintf(stderr, "lengths %u, %u\n", *seg_memory.mapped_len, *seg_memory.program_length);
         //fprintf(stderr, "before while\n");
         /* runs until end of zero segment in case of no halt command */
         
@@ -86,9 +87,9 @@ void run(uint32_t *program, uint32_t length)
                 //fprintf(stderr, "length %u\n", (uint32_t)(uintptr_t)(Seq_get(seg_memory.lengths, 0)));
                 uint32_t cur_command = word_load(seg_memory, 0, program_counter);
                 uint32_t opcode = get_opcode(cur_command);
-                // fprintf(stderr, "entire command %u\n", cur_command);
+                //fprintf(stderr, "entire command %u\n", cur_command);
                 // fprintf(stderr, "counter %u\n", program_counter);
-                // fprintf(stderr, "opcode: %u\n", opcode);
+                //fprintf(stderr, "opcode: %u\n", opcode);
                 uint32_t ra, rb, rc, value;
                 value = 0;
                 ra = 0;
@@ -484,14 +485,15 @@ static inline void load_program(struct Segments seg_memory,
         
         // UArray_T copy = UArray_copy(target_program, 
         //                             UArray_length(target_program));
-        uint32_t *copy = calloc(new_len,sizeof(uint32_t));
-        // for (uint32_t i = 0; i < new_len; i++) {
-        //         copy[i] = target_program[i];
-        // }
-        memcpy(copy, target_program, new_len*sizeof(uint32_t));
-        free_segment(seg_memory, 0);
-        update_zero_seg(seg_memory, copy);
-        Seq_put(seg_memory.lengths, 0, (void *)(uintptr_t)new_len);
+
+        if (id != 0) {
+                uint32_t *copy = calloc(new_len,sizeof(uint32_t));
+                memcpy(copy, target_program, new_len*sizeof(uint32_t));
+                free_segment(seg_memory, 0);
+                update_zero_seg(seg_memory, copy);
+                Seq_put(seg_memory.lengths, 0, (void *)(uintptr_t)new_len);
+        }
+        
 
         *program_counter = new_counter;
 }
