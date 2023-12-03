@@ -232,14 +232,13 @@ void free_segment(struct Segments seg, uint32_t id)
  ************************/
 void free_all_segments(struct Segments seg)
 {
-        //fprintf(stderr, "beginning to free\n");
         for (int i = 0; i < (int)(*seg.nextID); i++) {
                 uint32_t *table_entry = get_segment(seg, i);
                 if (table_entry != NULL) {
                         //fprintf(stderr, "MAPPP\n");
                         free(table_entry);
                         //table_entry = NULL;
-                } 
+                }
         }
         
         free(seg.mapped);
