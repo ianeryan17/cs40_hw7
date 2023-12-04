@@ -16,9 +16,6 @@
 #include "um_driver.h"
 
 
-
-
-
 /********** run ********
  * Purpose: receives a UArray_T that represents the program of the um and
             executes each word by calling execute_program
@@ -50,7 +47,6 @@ void run(UArray_T program)
                 rb = 0;
                 rc = 0;
                 if (opcode == 13){
-                        
                         
                         
                         ra = ((uint64_t)(cur_command) << 36) >> 61; 
