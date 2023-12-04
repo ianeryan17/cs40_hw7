@@ -52,7 +52,7 @@ all: um
 
 ## Linking step (.o -> executable program)
 
-um: um.o um_driver.o segments.o
+um: um.o um_driver.o
 	$(CC) $(LDFLAGS) $^ -o $@ $(LDLIBS)
 
 testmain: testmain.o um_driver.o word_extractor.o segments.o

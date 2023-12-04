@@ -5,8 +5,6 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdint.h>
-#include "seq.h"
-#include "segments.h"
 #include "uarray.h"
 // #include "word_extractor.h"
 
