@@ -16,7 +16,6 @@
 #include <stdint.h>
 #include <bitpack.h>
 #include "um_driver.h"
-#include "uarray.h"
 #include <sys/stat.h>
 
 
@@ -33,13 +32,11 @@ int main(int argc, char *argv[])
                 fprintf(stderr, "Please try again with a proper .um file.\n");
                 return EXIT_FAILURE;
         }
-
         
-        /* use stat to find size of um program to size UArray */
+        /* start of program reader */
         struct stat st;
         stat(program, &st);
         int num_words = (st.st_size)/4;
-        //UArray_T um_program = UArray_new(num_words, sizeof(uint32_t));
         uint32_t *um_program = calloc(num_words, sizeof(uint32_t));
         
         char curr_char;
@@ -64,12 +61,10 @@ int main(int argc, char *argv[])
 
         fclose(program_ptr);
         
-        //run(um_program);
-
+        /* start of run */
         uint32_t program_counter = 0;
 
-        //initialize
-        
+        /* initialize */
         uint32_t **mapped = calloc(1000000, sizeof(uint32_t));
         assert(mapped != NULL);
 
@@ -84,23 +79,21 @@ int main(int argc, char *argv[])
         uint32_t unmapped_len = 0;
         uint32_t program_length = 0;
 
-        //update zero seg
+        /* update zero seg */
         mapped[0] = um_program;
         (mapped_len)++;
         (program_length) = num_words;
         segment_lengths[0] = program_length;
-
 
         uint32_t *registers = (uint32_t *) calloc(8, sizeof(uint32_t));
         assert(registers != NULL);
         /* runs until end of zero segment in case of no halt command */
         while (program_counter < (program_length)) {
 
-                //word load
+                /* word load */
                 assert(0 < mapped_len);
                 uint32_t *program_seg = mapped[0];
                 
-
                 assert(program_seg != NULL); 
                 assert(program_length > program_counter); 
                 uint32_t cur_command = program_seg[program_counter];
@@ -133,14 +126,15 @@ int main(int argc, char *argv[])
                 (program_counter)++; 
                 assert(opcode <= 13);
 
-                switch(opcode) {
-                        case 0:
+                switch(opcode) { 
+                        case 0: /* conditional move */
                                 if (registers[rc] != 0) {
                                         uint32_t rb_val = registers[rb];
                                         registers[ra] = rb_val;
                                 }
                                 break;
-                        case 1:
+
+                        case 1: /* seg store */
                                 id = registers[rb];
                                 offset = registers[rc];
                                 assert(id < mapped_len);
@@ -151,7 +145,8 @@ int main(int argc, char *argv[])
                                 word = target_segment[offset];
                                 registers[ra] = word;
                                 break;
-                        case 2:
+
+                        case 2: /* seg load */
                                 word = registers[rc];
                                 id = registers[ra];
                                 offset = registers[rb];
@@ -164,30 +159,35 @@ int main(int argc, char *argv[])
 
                                 target_segment[offset] = word;
                                 break;
-                        case 3:
+
+                        case 3: /* addition */
                                 result = registers[rb] + registers[rc];
                                 registers[ra] = result;
                                 break;
-                        case 4:
+
+                        case 4: /* multiplication */
                                 result = registers[rb] * registers[rc];
                                 registers[ra] = result;
                                 break;
-                        case 5:
+
+                        case 5: /* division */
                                 assert(registers[rc] != 0);
                                 result = registers[rb] / registers[rc];
                                 registers[ra] = result;
                                 break;
-                        case 6:
+
+                        case 6: /* nand */
                                 result = registers[rb] & registers[rc];
                                 result = ~result;
                                 registers[ra] = result;
                                 break;
-                        case 7:
+
+                        case 7: /* halt */
                                 program_counter = program_length;
                                 break;
-                        case 8:
-                                num_words = registers[rc];
 
+                        case 8: /* map seg */
+                                num_words = registers[rc];
                                 id = 0;
                                 if ((unmapped_len) == 0){ /* new id case */
                                         id = (nextID);
@@ -207,10 +207,10 @@ int main(int argc, char *argv[])
                                         mapped[id] = new_seg;
                                         segment_lengths[id] = num_words;
                                 }
-
                                 registers[rb] = id;
                                 break;
-                        case 9:
+
+                        case 9: /* unmap seg */
                                 id = registers[rc];
 
                                 /* checks for attempt to unmap zero segment */
@@ -230,16 +230,17 @@ int main(int argc, char *argv[])
                                 uint32_t index = (unmapped_len);
                                 unmapped[index] = id;
                                 (unmapped_len)++;
-
                                 break;
-                        case 10:
+
+                        case 10: /* output */
                                 result = registers[rc];
                                 assert(result <= 255);
                                 x = result;
                                 c = x;
                                 fprintf(stdout, "%c", c);
                                 break;
-                        case 11:
+
+                        case 11: /* input */
                                 c = fgetc(stdin);
                                 result = 0;
                                 if (c == EOF) {
@@ -249,8 +250,8 @@ int main(int argc, char *argv[])
                                 }
                                 registers[rc] = result;
                                 break;
-                        case 12:
 
+                        case 12: /* load prog */
                                 id = registers[rb];
                                 new_counter = registers[rc];
                                 if (id != 0) {
@@ -267,14 +268,14 @@ int main(int argc, char *argv[])
                                         memcpy(copy, target_program, segment_lengths[id] * sizeof(uint32_t));
                                         assert(0 < mapped_len);
 
-                                        //freeing old zero seg
+                                        /* freeing old zero seg */
                                         uint32_t *table_entry = mapped[0];
                                         if (table_entry != NULL) {
                                                 free(table_entry);
                                                 mapped[0] = NULL;
                                                 table_entry = NULL;
                                         }
-
+                                        /* update zero seg */
                                         if ((mapped_len) == 0) {
                                                 mapped[0] = copy;
                                                 (mapped_len)++;
@@ -288,7 +289,8 @@ int main(int argc, char *argv[])
                                 }
                                 program_counter = new_counter;
                                 break;
-                        case 13:
+
+                        case 13: /* load val */
                                 registers[ra] = value;
                                 break;
                 }
