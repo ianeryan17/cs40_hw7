@@ -15,16 +15,6 @@
 #include "assert.h"
 #include "um_driver.h"
 
-struct Segments {
-    UArray_T *mapped;
-    uint32_t *unmapped;
-    uint32_t *nextID;
-    uint32_t *mapped_len;
-    uint32_t *unmapped_len;
-    uint32_t *program_length;
-};
-
-typedef struct Segments *Segments;
 
 
 /********** run ********
@@ -39,43 +29,35 @@ void run(UArray_T program)
         uint32_t program_counter = 0;
 
         //initialize
-        struct Segments seg;
-        seg.mapped = calloc(1000000, sizeof(UArray_T));
-        assert(seg.mapped != NULL);
+        
+        UArray_T *mapped = calloc(1000000, sizeof(UArray_T));
+        assert(mapped != NULL);
 
-        seg.unmapped = calloc(1000000, sizeof(uint32_t));
-        assert(seg.unmapped != NULL);
+        uint32_t *unmapped = calloc(1000000, sizeof(uint32_t));
+        assert(unmapped != NULL);
 
-        seg.nextID = malloc(sizeof(seg.nextID));
-        assert(seg.nextID != NULL);
-        (*seg.nextID) = 1;
+        uint32_t nextID = 1;
 
-        seg.mapped_len = malloc(sizeof(seg.mapped_len));
-        assert(seg.mapped_len != NULL);
-        (*seg.mapped_len) = 0;
+        uint32_t mapped_len = 0;
 
-        seg.unmapped_len = malloc(sizeof(seg.unmapped_len));
-        assert(seg.unmapped_len != NULL);
-        (*seg.unmapped_len) = 0;
+        uint32_t unmapped_len = 0;
 
-        seg.program_length = malloc(sizeof(seg.program_length));
-        assert(seg.program_length != NULL);
-        (*seg.program_length) = 0;
+        uint32_t program_length = 0;
 
         //update zero seg
-        seg.mapped[0] = (void *)program;
-        (*seg.mapped_len)++;
-        (*seg.program_length) = (uint32_t)UArray_length(program);
+        mapped[0] = (void *)program;
+        (mapped_len)++;
+        (program_length) = (uint32_t)UArray_length(program);
 
 
         uint32_t *registers = (uint32_t *) calloc(8, sizeof(uint32_t));
         assert(registers != NULL);
         /* runs until end of zero segment in case of no halt command */
-        while (program_counter < (*seg.program_length)) {
+        while (program_counter < (program_length)) {
 
                 //word load
-                assert(0 < *seg.mapped_len);
-                UArray_T program_seg = seg.mapped[0];
+                assert(0 < mapped_len);
+                UArray_T program_seg = mapped[0];
                 
 
                 assert(program_seg != NULL); 
@@ -120,8 +102,8 @@ void run(UArray_T program)
                         case 1:
                                 id = registers[rb];
                                 offset = registers[rc];
-                                assert(id < *seg.mapped_len);
-                                target_segment = seg.mapped[id];
+                                assert(id < mapped_len);
+                                target_segment = mapped[id];
 
                                 assert(target_segment != NULL); 
                                 assert((uint32_t)UArray_length(target_segment) > offset); 
@@ -133,8 +115,8 @@ void run(UArray_T program)
                                 id = registers[ra];
                                 offset = registers[rb];
 
-                                assert(id < *seg.mapped_len);
-                                target_segment = seg.mapped[id];
+                                assert(id < mapped_len);
+                                target_segment = mapped[id];
 
                                 assert(target_segment != NULL); 
                                 assert((uint32_t)UArray_length(target_segment) > offset); 
@@ -160,27 +142,27 @@ void run(UArray_T program)
                                 registers[ra] = result;
                                 break;
                         case 7:
-                                program_counter = *seg.program_length;
+                                program_counter = program_length;
                                 break;
                         case 8:
                                 num_words = registers[rc];
 
                                 id = 0;
-                                if ((*seg.unmapped_len) == 0){ /* new id case */
-                                        id = (*seg.nextID);
+                                if ((unmapped_len) == 0){ /* new id case */
+                                        id = (nextID);
                                         UArray_T new_seg = UArray_new(num_words, sizeof(uint32_t));
-                                        (*seg.nextID)++;
-                                        seg.mapped[id] = new_seg;
-                                        (*seg.mapped_len)++;
-                                        assert((*seg.nextID) == (uint32_t)(*seg.mapped_len));
+                                        (nextID)++;
+                                        mapped[id] = new_seg;
+                                        (mapped_len)++;
+                                        assert((nextID) == (uint32_t)(mapped_len));
                                 } else { /* unmapped id case */
-                                        (*seg.unmapped_len)--;
-                                        uint32_t index = (*seg.unmapped_len);
-                                        id = seg.unmapped[index];
-                                        seg.unmapped[index] = -1;
+                                        (unmapped_len)--;
+                                        uint32_t index = (unmapped_len);
+                                        id = unmapped[index];
+                                        unmapped[index] = -1;
                                         
                                         UArray_T new_seg = UArray_new(num_words, sizeof(uint32_t));
-                                        seg.mapped[id] = new_seg;
+                                        mapped[id] = new_seg;
                                 }
 
                                 registers[rb] = id;
@@ -190,8 +172,8 @@ void run(UArray_T program)
 
                                 /* checks for attempt to unmap zero segment */
                                 assert(id != 0); //
-                                assert(id < *seg.mapped_len);
-                                UArray_T table_entry = seg.mapped[id];
+                                assert(id < mapped_len);
+                                UArray_T table_entry = mapped[id];
                                 
                                 /* unmap non-mapped or unmapped segment */
                                 assert(table_entry != NULL); 
@@ -199,10 +181,10 @@ void run(UArray_T program)
                                 UArray_free(&table_entry);
                                 table_entry = NULL;
                                 
-                                seg.mapped[id] = NULL;
-                                uint32_t index = (*seg.unmapped_len);
-                                seg.unmapped[index] = id;
-                                (*seg.unmapped_len)++;
+                                mapped[id] = NULL;
+                                uint32_t index = (unmapped_len);
+                                unmapped[index] = id;
+                                (unmapped_len)++;
 
                                 break;
                         case 10:
@@ -227,8 +209,8 @@ void run(UArray_T program)
                                 id = registers[rb];
                                 new_counter = registers[rc];
                                 if (id != 0) {
-                                        assert(id < *seg.mapped_len); 
-                                        UArray_T target_program = seg.mapped[id];
+                                        assert(id < mapped_len); 
+                                        UArray_T target_program = mapped[id];
                                 
                                         /* catch attempt to load unmapped/not-mapped seg */
                                         assert(target_program != NULL); 
@@ -237,21 +219,21 @@ void run(UArray_T program)
                                         
                                         UArray_T copy = UArray_copy(target_program, 
                                                                 UArray_length(target_program));
-                                        assert(0 < *seg.mapped_len);
-                                        UArray_T table_entry = seg.mapped[0];
+                                        assert(0 < mapped_len);
+                                        UArray_T table_entry = mapped[0];
                                         if (table_entry != NULL) {
                                                 UArray_free(&table_entry);
                                                 table_entry = NULL;
                                         }
 
-                                        if ((*seg.mapped_len) == 0) {
-                                                seg.mapped[0] = (void *)copy;
-                                                (*seg.mapped_len)++;
+                                        if ((mapped_len) == 0) {
+                                                mapped[0] = (void *)copy;
+                                                (mapped_len)++;
 
                                         } else {
-                                                seg.mapped[0] = copy;
+                                                mapped[0] = copy;
                                         }
-                                        (*seg.program_length) = (uint32_t)UArray_length(copy);
+                                        (program_length) = (uint32_t)UArray_length(copy);
 
                                 }
                                 program_counter = new_counter;
@@ -265,25 +247,18 @@ void run(UArray_T program)
         
         free(registers);
 
-        for (int i = 0; i < (int)(*seg.nextID); i++) {
-                assert((uint32_t)i < *seg.mapped_len);
-                UArray_T table_entry = seg.mapped[i];
+        for (int i = 0; i < (int)(nextID); i++) {
+                assert((uint32_t)i < mapped_len);
+                UArray_T table_entry = mapped[i];
                 if (table_entry != NULL) {
                         UArray_free(&table_entry);
                         table_entry = NULL;
                 }
         }
-        free(seg.mapped);
-        free(seg.unmapped);
-        free(seg.nextID);
-        free(seg.mapped_len);
-        free(seg.unmapped_len);
-        free(seg.program_length);
-        seg.nextID = NULL;
-        seg.mapped = NULL;
-        seg.unmapped = NULL;
-        seg.mapped_len = NULL;
-        seg.unmapped_len = NULL;
+        free(mapped);
+        free(unmapped);
+        mapped = NULL;
+        unmapped = NULL;
 }
 
 
