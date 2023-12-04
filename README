@@ -107,3 +107,5 @@ Hours Spent:
 Analysing the assignment: 3 hours
 Preparing your design: 10 hours
 Solving the problems after your analysis: 20 hours
+
+valgrind --tool=callgrind --dump-instr=yes ./um midmark.um
