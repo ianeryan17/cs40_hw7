@@ -29,6 +29,7 @@ void run(UArray_T program)
         struct Segments seg_memory = initialize();
         update_zero_seg(seg_memory, program);
         uint32_t *registers = (uint32_t *) calloc(8, sizeof(uint32_t));
+        assert(registers != NULL);
         //fprintf(stderr, "before while\n");
         /* runs until end of zero segment in case of no halt command */
         while (program_counter < (*seg_memory.program_length)) {

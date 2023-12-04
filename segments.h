@@ -13,7 +13,7 @@
 
 struct Segments {
     UArray_T *mapped;
-    Seq_T unmapped;
+    uint32_t *unmapped;
     uint32_t *nextID;
     uint32_t *mapped_len;
     uint32_t *unmapped_len;
