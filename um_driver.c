@@ -18,9 +18,6 @@
 
 
 
-static inline uint64_t bitget(uint64_t word, unsigned width, unsigned lsb);
-static inline uint64_t shr(uint64_t word, unsigned bits);
-static inline uint64_t shl(uint64_t word, unsigned bits);
 
 /********** run ********
  * Purpose: receives a UArray_T that represents the program of the um and
@@ -42,7 +39,9 @@ void run(UArray_T program)
 
                 //execute_command(seg_memory, cur_command, registers, &program_counter);
 
-                uint32_t opcode = (uint32_t)bitget(cur_command, 4, 28);
+                
+                
+                uint32_t opcode = ((uint64_t)(cur_command) << 32) >> 60; 
         // fprintf(stderr, "opcode: %u\n", opcode);
 
                 uint32_t ra, rb, rc, value;
@@ -51,14 +50,18 @@ void run(UArray_T program)
                 rb = 0;
                 rc = 0;
                 if (opcode == 13){
-                        ra = (uint32_t)bitget(cur_command, 3, 25); 
-                        value = (uint32_t)bitget(cur_command, 25, 0); 
+                        
+                        
+                        
+                        ra = ((uint64_t)(cur_command) << 36) >> 61; 
+                        value = ((uint64_t)(cur_command) << 39) >> 39; 
                         assert(ra < 8);
                         // fprintf(stderr, "loading value: %u into %u\n", value, ra);
                 } else {
-                        ra = (uint32_t)bitget(cur_command, 3, 6);
-                        rb = (uint32_t)bitget(cur_command, 3, 3);
-                        rc = (uint32_t)bitget(cur_command, 3, 0);
+                        
+                        ra = ((uint64_t)(cur_command) << 55) >> 61; 
+                        rb = ((uint64_t)(cur_command) << 58) >> 61; 
+                        rc = ((uint64_t)(cur_command) << 61) >> 61; 
                         assert(ra < 8);
                         assert(rb < 8);
                         assert(rc < 8);
@@ -172,35 +175,5 @@ void run(UArray_T program)
 
 
 
-static inline uint64_t shl(uint64_t word, unsigned bits)
-{
-        assert(bits <= 64);
-        if (bits == 64)
-                return 0;
-        else
-                return word << bits;
-}
-
-/*
- * shift R logical
- */
-static inline uint64_t shr(uint64_t word, unsigned bits)
-{
-        assert(bits <= 64);
-        if (bits == 64)
-                return 0;
-        else
-                return word >> bits;
-}
 
 
-
-static inline uint64_t bitget(uint64_t word, unsigned width, unsigned lsb)
-{
-        assert(width <= 64);
-        unsigned hi = lsb + width; /* one beyond the most significant bit */
-        assert(hi <= 64);
-        /* different type of right shift */
-        return shr(shl(word, 64 - hi),
-                   64 - width); 
-}
