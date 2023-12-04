@@ -8,7 +8,7 @@
 #include "uarray.h"
 // #include "word_extractor.h"
 
-extern void run(UArray_T program);
+extern void run(uint32_t *program);
 
 
 #endif

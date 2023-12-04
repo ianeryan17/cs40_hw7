@@ -24,7 +24,7 @@
  * Return:  void
  * Expects: program to be a properly initialized UArray 
  ************************/
-void run(UArray_T program)
+void run(uint32_t *program)
 {
         uint32_t program_counter = 0;
 
