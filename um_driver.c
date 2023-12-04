@@ -26,17 +26,6 @@ struct Segments {
 
 typedef struct Segments *Segments;
 
-static inline struct Segments initialize();
-static inline void update_zero_seg(struct Segments seg, UArray_T program);
-static inline uint32_t segment_map(struct Segments seg, uint32_t length);
-static inline void segment_unmap(struct Segments seg, uint32_t id);
-static inline void word_store(struct Segments seg, uint32_t word, uint32_t id, 
-                       uint32_t offset);
-static inline uint32_t word_load(struct Segments seg, uint32_t id, uint32_t offset);
-static inline void free_segment(struct Segments seg, uint32_t id);
-static inline void free_all_segments(struct Segments seg);
-static inline UArray_T get_segment(struct Segments seg, uint32_t id);
-
 
 /********** run ********
  * Purpose: receives a UArray_T that represents the program of the um and
@@ -48,21 +37,52 @@ static inline UArray_T get_segment(struct Segments seg, uint32_t id);
 void run(UArray_T program)
 {
         uint32_t program_counter = 0;
-        struct Segments seg_memory = initialize();
-        update_zero_seg(seg_memory, program);
+
+        //initialize
+        struct Segments seg;
+        seg.mapped = calloc(1000000, sizeof(UArray_T));
+        assert(seg.mapped != NULL);
+
+        seg.unmapped = calloc(1000000, sizeof(uint32_t));
+        assert(seg.unmapped != NULL);
+
+        seg.nextID = malloc(sizeof(seg.nextID));
+        assert(seg.nextID != NULL);
+        (*seg.nextID) = 1;
+
+        seg.mapped_len = malloc(sizeof(seg.mapped_len));
+        assert(seg.mapped_len != NULL);
+        (*seg.mapped_len) = 0;
+
+        seg.unmapped_len = malloc(sizeof(seg.unmapped_len));
+        assert(seg.unmapped_len != NULL);
+        (*seg.unmapped_len) = 0;
+
+        seg.program_length = malloc(sizeof(seg.program_length));
+        assert(seg.program_length != NULL);
+        (*seg.program_length) = 0;
+
+        //update zero seg
+        seg.mapped[0] = (void *)program;
+        (*seg.mapped_len)++;
+        (*seg.program_length) = (uint32_t)UArray_length(program);
+
+
         uint32_t *registers = (uint32_t *) calloc(8, sizeof(uint32_t));
         assert(registers != NULL);
-        //fprintf(stderr, "before while\n");
         /* runs until end of zero segment in case of no halt command */
-        while (program_counter < (*seg_memory.program_length)) {
-                uint32_t cur_command = word_load(seg_memory, 0, program_counter);
+        while (program_counter < (*seg.program_length)) {
 
-                //execute_command(seg_memory, cur_command, registers, &program_counter);
-
+                //word load
+                assert(0 < *seg.mapped_len);
+                UArray_T program_seg = seg.mapped[0];
                 
+
+                assert(program_seg != NULL); 
+                assert((uint32_t)UArray_length(program_seg) > program_counter); 
+                uint32_t cur_command = (*(uint32_t *)UArray_at(program_seg, program_counter));
                 
                 uint32_t opcode = ((uint64_t)(cur_command) << 32) >> 60; 
-        // fprintf(stderr, "opcode: %u\n", opcode);
 
                 uint32_t ra, rb, rc, value;
                 value = 0;
@@ -71,11 +91,9 @@ void run(UArray_T program)
                 rc = 0;
                 if (opcode == 13){
                         
-                        
                         ra = ((uint64_t)(cur_command) << 36) >> 61; 
                         value = ((uint64_t)(cur_command) << 39) >> 39; 
                         assert(ra < 8);
-                        // fprintf(stderr, "loading value: %u into %u\n", value, ra);
                 } else {
                         
                         ra = ((uint64_t)(cur_command) << 55) >> 61; 
@@ -84,12 +102,11 @@ void run(UArray_T program)
                         assert(ra < 8);
                         assert(rb < 8);
                         assert(rc < 8);
-                        // fprintf(stderr, "ra, rb, rc: %u, %u, %u\n", ra, rb, rc);
                 }
                 uint32_t id, offset, word, result, num_words, new_counter;
                 int x;
                 char c;
-                
+                UArray_T target_segment = NULL;
                 (program_counter)++; 
                 assert(opcode <= 13);
 
@@ -103,14 +120,26 @@ void run(UArray_T program)
                         case 1:
                                 id = registers[rb];
                                 offset = registers[rc];
-                                word = word_load(seg_memory, id, offset);
+                                assert(id < *seg.mapped_len);
+                                target_segment = seg.mapped[id];
+
+                                assert(target_segment != NULL); 
+                                assert((uint32_t)UArray_length(target_segment) > offset); 
+                                word = (*(uint32_t *)UArray_at(target_segment, offset));
                                 registers[ra] = word;
                                 break;
                         case 2:
                                 word = registers[rc];
                                 id = registers[ra];
                                 offset = registers[rb];
-                                word_store(seg_memory, word, id, offset);
+
+                                assert(id < *seg.mapped_len);
+                                target_segment = seg.mapped[id];
+
+                                assert(target_segment != NULL); 
+                                assert((uint32_t)UArray_length(target_segment) > offset); 
+
+                                *((uint32_t *)UArray_at(target_segment, offset)) = word;
                                 break;
                         case 3:
                                 result = registers[rb] + registers[rc];
@@ -131,16 +160,50 @@ void run(UArray_T program)
                                 registers[ra] = result;
                                 break;
                         case 7:
-                                program_counter = *seg_memory.program_length;
+                                program_counter = *seg.program_length;
                                 break;
                         case 8:
                                 num_words = registers[rc];
-                                id = segment_map(seg_memory, num_words);
+
+                                id = 0;
+                                if ((*seg.unmapped_len) == 0){ /* new id case */
+                                        id = (*seg.nextID);
+                                        UArray_T new_seg = UArray_new(num_words, sizeof(uint32_t));
+                                        (*seg.nextID)++;
+                                        seg.mapped[id] = new_seg;
+                                        (*seg.mapped_len)++;
+                                        assert((*seg.nextID) == (uint32_t)(*seg.mapped_len));
+                                } else { /* unmapped id case */
+                                        (*seg.unmapped_len)--;
+                                        uint32_t index = (*seg.unmapped_len);
+                                        id = seg.unmapped[index];
+                                        seg.unmapped[index] = -1;
+                                        
+                                        UArray_T new_seg = UArray_new(num_words, sizeof(uint32_t));
+                                        seg.mapped[id] = new_seg;
+                                }
+
                                 registers[rb] = id;
                                 break;
                         case 9:
                                 id = registers[rc];
-                                segment_unmap(seg_memory, id);
+
+                                /* checks for attempt to unmap zero segment */
+                                assert(id != 0); //
+                                assert(id < *seg.mapped_len);
+                                UArray_T table_entry = seg.mapped[id];
+                                
+                                /* unmap non-mapped or unmapped segment */
+                                assert(table_entry != NULL); 
+                                
+                                UArray_free(&table_entry);
+                                table_entry = NULL;
+                                
+                                seg.mapped[id] = NULL;
+                                uint32_t index = (*seg.unmapped_len);
+                                seg.unmapped[index] = id;
+                                (*seg.unmapped_len)++;
+
                                 break;
                         case 10:
                                 result = registers[rc];
@@ -164,7 +227,8 @@ void run(UArray_T program)
                                 id = registers[rb];
                                 new_counter = registers[rc];
                                 if (id != 0) {
-                                        UArray_T target_program = get_segment(seg_memory, id);
+                                        assert(id < *seg.mapped_len); 
+                                        UArray_T target_program = seg.mapped[id];
                                 
                                         /* catch attempt to load unmapped/not-mapped seg */
                                         assert(target_program != NULL); 
@@ -173,8 +237,21 @@ void run(UArray_T program)
                                         
                                         UArray_T copy = UArray_copy(target_program, 
                                                                 UArray_length(target_program));
-                                        free_segment(seg_memory, 0);
-                                        update_zero_seg(seg_memory, copy);
+                                        assert(0 < *seg.mapped_len);
+                                        UArray_T table_entry = seg.mapped[0];
+                                        if (table_entry != NULL) {
+                                                UArray_free(&table_entry);
+                                                table_entry = NULL;
+                                        }
+
+                                        if ((*seg.mapped_len) == 0) {
+                                                seg.mapped[0] = (void *)copy;
+                                                (*seg.mapped_len)++;
+
+                                        } else {
+                                                seg.mapped[0] = copy;
+                                        }
+                                        (*seg.program_length) = (uint32_t)UArray_length(copy);
 
                                 }
                                 program_counter = new_counter;
@@ -185,202 +262,16 @@ void run(UArray_T program)
                 }
 
         }
-        //fprintf(stderr, "before freeing reg\n");
+        
         free(registers);
-        //fprintf(stderr, "after freeing reg\n");
-        free_all_segments(seg_memory);
-        //fprintf(stderr, "after freeing segs\n");
-}
 
-
-static inline struct Segments initialize()
-{
-        struct Segments seg;
-        seg.mapped = calloc(1000000, sizeof(UArray_T));
-        assert(seg.mapped != NULL);
-
-        seg.unmapped = calloc(1000000, sizeof(uint32_t));
-        assert(seg.unmapped != NULL);
-
-        seg.nextID = malloc(sizeof(seg.nextID));
-        assert(seg.nextID != NULL);
-        (*seg.nextID) = 1;
-
-        seg.mapped_len = malloc(sizeof(seg.mapped_len));
-        assert(seg.mapped_len != NULL);
-        (*seg.mapped_len) = 0;
-
-        seg.unmapped_len = malloc(sizeof(seg.unmapped_len));
-        assert(seg.unmapped_len != NULL);
-        (*seg.unmapped_len) = 0;
-
-        seg.program_length = malloc(sizeof(seg.program_length));
-        assert(seg.program_length != NULL);
-        (*seg.program_length) = 0;
-        return seg;
-}
-// ttest
-/********** update_zero_seg ********
- * Purpose: sets 0 segment in segments table to given UArray_T (program)
- * Inputs:  Segments seg: reference to segments struct
-            UArray_T program: reference to program to be loaded in
- * Return:  reference to initialzed instance of seg
- * Expects: value in the table that represents 0 seg to be empty
- ************************/
-static inline void update_zero_seg(struct Segments seg, UArray_T program)
-{
-        if ((*seg.mapped_len) == 0) {
-                seg.mapped[0] = (void *)program;
-                (*seg.mapped_len)++;
-
-        } else {
-                seg.mapped[0] = program;
-        }
-        (*seg.program_length) = (uint32_t)UArray_length(program);
-        //fprintf(stderr, "length should be %u but it is %u\n", (*seg.nextID), (uint32_t)Seq_length(seg.mapped));
-
-}
-
-/********** segment_map ********
- * Purpose: initializes a new key value pair in the table and sets the value
-            to a UArray_T of the given length of all zeros
- * Inputs:  Segments seg: reference to segments struct
-            uint32_t length: length of the newly mapped segment
- * Return:  segment ID of the newly mapped segment 
- * Expects: seg to be initialized properly
- ************************/
-static inline uint32_t segment_map(struct Segments seg, uint32_t length)
-{
-        uint32_t id = 0;
-        if ((*seg.unmapped_len) == 0){ /* new id case */
-                id = (*seg.nextID);
-                UArray_T new_seg = UArray_new(length, sizeof(uint32_t));
-                (*seg.nextID)++;
-                seg.mapped[id] = new_seg;
-                (*seg.mapped_len)++;
-                // fprintf(stderr, "length should be %u but it is %u\n", (*seg.nextID), (uint32_t)Seq_length(seg.mapped));
-                assert((*seg.nextID) == (uint32_t)(*seg.mapped_len));
-        } else { /* unmapped id case */
-                //id = (uint32_t)(uintptr_t)Seq_remhi(seg.unmapped);
-                (*seg.unmapped_len)--;
-                uint32_t index = (*seg.unmapped_len);
-                id = seg.unmapped[index];
-                seg.unmapped[index] = -1;
-                
-                UArray_T new_seg = UArray_new(length, sizeof(uint32_t));
-                seg.mapped[id] = new_seg;
-        }
-        //fprintf(stderr, "SEGMENT %u created with length %u\n", id, length);
-        return id;
-}
-
-/********** segment_unmap ********
- * Purpose: sets the element in the table corresponding to the given key (id)
-            to null, while freeing the previous UArray_T
- * Inputs:  Segments seg: reference to segments struct
-            uint32_t id: seg id of segment to be unmapped
- * Return:  void 
- * Expects: seg to be initialized properly
- ************************/
-static inline void segment_unmap(struct Segments seg, uint32_t id)
-{
-        /* checks for attempt to unmap zero segment */
-        assert(id != 0); //
-        UArray_T table_entry = get_segment(seg, id);
-        
-        /* unmap non-mapped or unmapped segment */
-        assert(table_entry != NULL); 
-        
-        UArray_free(&table_entry);
-        table_entry = NULL;
-        
-        seg.mapped[id] = NULL;
-        //Seq_addhi(seg.unmapped, (void *)(uintptr_t)id);
-        uint32_t index = (*seg.unmapped_len);
-        seg.unmapped[index] = id;
-        (*seg.unmapped_len)++;
-}
-
-/********** word_store ********
- * Purpose: stores given word in the seg memory address given (id and offset)
- * Inputs:  Segments seg: reference to segments struct
-            uint32_t word: value to be stored in memory
-            uint32_t id: seg id of desired segment
-            uint32_t offset: index of UArray of the given segment
- * Return:  void 
- * Expects: seg to be initialized properly
- ************************/
-static inline void word_store(struct Segments seg, uint32_t word, uint32_t id, 
-                       uint32_t offset)
-{
-        UArray_T target_segment = get_segment(seg, id);
-        
-        /* catches unmapped or non-mapped segment */
-        assert(target_segment != NULL); 
-        /* ensures offset is within segment length */
-        // fprintf(stderr, "trying to store word in id: %u, length: %u and offset: %u\n", id, (uint32_t)UArray_length(target_segment), offset);
-        assert((uint32_t)UArray_length(target_segment) > offset); 
-
-        *((uint32_t *)UArray_at(target_segment, offset)) = word;
-}
-
-/********** word_load ********
- * Purpose: gets word from given address of segmented memory
- * Inputs:  Segments seg: reference to segments struct
-            uint32_t id: seg id of desired segment
-            uint32_t offset: index of UArray of the given segment
- * Return:  word located at given address 
- * Expects: seg to be initialized properly
- ************************/
-static inline uint32_t word_load(struct Segments seg, uint32_t id, uint32_t offset)
-{
-        UArray_T target_segment = get_segment(seg, id);
-        assert(target_segment != NULL); 
-        assert((uint32_t)UArray_length(target_segment) > offset); 
-        return (*(uint32_t *)UArray_at(target_segment, offset));
-}
-
-/********** get_segment ********
- * Purpose: retrieves reference of given segment id from table
- * Inputs:  Segments seg: reference to segments struct
-            uint32_t id: seg id of desired segment
- * Return:  reference to segment at given id
- * Expects: seg to be initialized properly
- ************************/
-static inline UArray_T get_segment(struct Segments seg, uint32_t id)
-{
-        assert(id < *seg.mapped_len);
-        return seg.mapped[id];
-}
-
-/********** free_segment ********
- * Purpose: frees given segment at given seg id from memory, leaves key in
-            table but sets value to NULL
- * Inputs:  Segments seg: reference to segments struct
-            uint32_t id: seg id of desired segment
- * Return:  void
- * Expects: seg to be initialized properly
- ************************/
-static inline void free_segment(struct Segments seg, uint32_t id)
-{
-        UArray_T table_entry = get_segment(seg, id);
-        if (table_entry != NULL) {
-                UArray_free(&table_entry);
-                table_entry = NULL;
-        }
-}
-
-/********** free_all_segments ********
- * Purpose: frees all allocated memory corresponding to segmented memory, calls
-            mapping helper function to free each segment individually
- * Inputs:  Segments seg: reference to segments struct
- * Return:  void
- * Expects: seg to be initialized properly
- ************************/
-static inline void free_all_segments(struct Segments seg)
-{
         for (int i = 0; i < (int)(*seg.nextID); i++) {
-                free_segment(seg, i);
+                assert((uint32_t)i < *seg.mapped_len);
+                UArray_T table_entry = seg.mapped[i];
+                if (table_entry != NULL) {
+                        UArray_free(&table_entry);
+                        table_entry = NULL;
+                }
         }
         free(seg.mapped);
         free(seg.unmapped);
@@ -394,5 +285,6 @@ static inline void free_all_segments(struct Segments seg)
         seg.mapped_len = NULL;
         seg.unmapped_len = NULL;
 }
+
 
 
