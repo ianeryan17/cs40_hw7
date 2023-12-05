@@ -28,7 +28,7 @@
 struct Segments initialize()
 {
         struct Segments seg;
-        seg.mapped = calloc(1000000, sizeof(UArray_T));
+        seg.mapped = calloc(1000000000, sizeof(UArray_T));
         seg.unmapped = Seq_new(10);
 
         seg.nextID = malloc(sizeof(seg.nextID));
