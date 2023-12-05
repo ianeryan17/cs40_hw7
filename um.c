@@ -65,13 +65,13 @@ int main(int argc, char *argv[])
         uint32_t program_counter = 0;
 
         /* initialize */
-        uint32_t **mapped = calloc(1000000, sizeof(uint32_t));
+        uint32_t **mapped = calloc(100000000, sizeof(uint32_t));
         assert(mapped != NULL);
 
-        uint32_t *unmapped = calloc(1000000, sizeof(uint32_t));
+        uint32_t *unmapped = calloc(100000000, sizeof(uint32_t));
         assert(unmapped != NULL);
 
-        uint32_t *segment_lengths = calloc(1000000, sizeof(uint32_t));
+        uint32_t *segment_lengths = calloc(100000000, sizeof(uint32_t));
         assert(segment_lengths != NULL);
 
         uint32_t nextID = 1;
