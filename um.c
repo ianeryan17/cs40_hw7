@@ -191,19 +191,22 @@ int main(int argc, char *argv[])
                                 id = 0;
                                 if ((unmapped_len) == 0){ /* new id case */
                                         id = (nextID);
-                                        uint32_t *new_seg = calloc(num_words, sizeof(uint32_t));
+                                        uint32_t *new_seg = calloc(num_words,
+                                                            sizeof(uint32_t));
                                         (nextID)++;
                                         mapped[id] = new_seg;
                                         segment_lengths[id] = num_words;
                                         (mapped_len)++;
-                                        assert((nextID) == (uint32_t)(mapped_len));
+                                        assert((nextID) == 
+                                                      (uint32_t)(mapped_len));
                                 } else { /* unmapped id case */
                                         (unmapped_len)--;
                                         uint32_t index = (unmapped_len);
                                         id = unmapped[index];
                                         unmapped[index] = -1;
                                         
-                                        uint32_t *new_seg = calloc(num_words, sizeof(uint32_t));
+                                        uint32_t *new_seg = calloc(num_words, 
+                                                            sizeof(uint32_t));
                                         mapped[id] = new_seg;
                                         segment_lengths[id] = num_words;
                                 }
@@ -258,14 +261,16 @@ int main(int argc, char *argv[])
                                         assert(id < mapped_len); 
                                         uint32_t *target_program = mapped[id];
                                 
-                                        /* catch attempt to load unmapped/not-mapped seg */
+                                        /* catch attempt to load invalid seg */
                                         assert(target_program != NULL); 
                                         /* catch out of bounds program counter */
                                         assert(new_counter < segment_lengths[id]); 
                                         
 
-                                        uint32_t *copy = calloc(segment_lengths[id], sizeof(uint32_t));
-                                        memcpy(copy, target_program, segment_lengths[id] * sizeof(uint32_t));
+                                        uint32_t *copy = calloc(segment_lengths[id], 
+                                                                sizeof(uint32_t));
+                                        memcpy(copy, target_program, segment_lengths[id] * 
+                                                                        sizeof(uint32_t));
                                         assert(0 < mapped_len);
 
                                         /* freeing old zero seg */
