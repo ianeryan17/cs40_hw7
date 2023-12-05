@@ -30,13 +30,13 @@ void run(UArray_T program)
 
         //initialize
         
-        UArray_T *mapped = calloc(1000000, sizeof(UArray_T));
+        UArray_T *mapped = calloc(100000000, sizeof(UArray_T));
         assert(mapped != NULL);
 
-        uint32_t *unmapped = calloc(1000000, sizeof(uint32_t));
+        uint32_t *unmapped = calloc(100000000, sizeof(uint32_t));
         assert(unmapped != NULL);
 
-        uint32_t *segment_lengths = calloc(1000000, sizeof(uint32_t));
+        uint32_t *segment_lengths = calloc(100000000, sizeof(uint32_t));
         assert(segment_lengths != NULL);
 
         uint32_t nextID = 1;
