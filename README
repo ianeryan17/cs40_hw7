@@ -25,5 +25,7 @@ loop runs until the program counter is equal to the length of program.
 Therefore the comparison (program counter <  program_length) happens with each
 iteration of the while loop and is necessary for the program flow.
 
+Hours spent analyzing: 10
+Hours spent solving: 20
 
 valgrind --tool=callgrind --dump-instr=yes ./um midmark.um
