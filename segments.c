@@ -28,10 +28,10 @@
 struct Segments initialize()
 {
         struct Segments seg;
-        seg.mapped = calloc(1000000, sizeof(UArray_T));
+        seg.mapped = calloc(200000000, sizeof(UArray_T));
         assert(seg.mapped != NULL);
 
-        seg.unmapped = calloc(1000000, sizeof(uint32_t));
+        seg.unmapped = calloc(200000000, sizeof(uint32_t));
         assert(seg.unmapped != NULL);
 
         seg.nextID = malloc(sizeof(seg.nextID));
