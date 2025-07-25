@@ -39,9 +39,9 @@ This repository contains my solution to **Homework 7** for CS40 (Programming Lan
    ```
 
 3. **Build and run tests:**
-  ```bash
-  make test
-  ```
+   ```bash
+   make test
+   ```
 
 ---
 
