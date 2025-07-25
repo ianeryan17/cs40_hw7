@@ -51,3 +51,14 @@ This repository contains my solution to **Homework 7** for CS40 (Programming Lan
 - Implementing recursive evaluation using OCaml
 - The difference between static and dynamic scoping
 - Structuring evaluators using environments and stores
+
+---
+
+## 🏫 About the Course
+CS40: Machine Structure and Assembly Language Programming
+Tufts University – Fall 2023
+
+---
+
+## 📄 License
+This code was written as part of an academic assignment and is intended for educational reference. Please do not plagiarize.
